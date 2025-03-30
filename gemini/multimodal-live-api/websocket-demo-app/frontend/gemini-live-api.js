@@ -14,6 +14,23 @@ class GeminiLiveResponseMessage {
         } else if (parts?.length && parts[0].inlineData) {
             this.data = parts[0].inlineData.data;
             this.type = "AUDIO";
+        } else if (data?.sessionResumptionUpdate) {
+            this.type = "RESUMPTION";
+            this.data = data?.sessionResumptionUpdate?.newHandle;
+        } else if (data?.serverContent?.inputTranscription) {
+            this.type = "INPUT_TRANSCRIPTION";
+            if (data?.serverContent?.inputTranscription?.text) {
+                this.data = data?.serverContent?.inputTranscription?.text;
+            } else if (data?.serverContent?.inputTranscription?.finished) {
+                this.data = data?.serverContent?.inputTranscription?.finished
+            }
+        } else if (data?.serverContent?.outputTranscription) {
+            this.type = "OUTPUT_TRANSCRIPTION";
+            if (data?.serverContent?.outputTranscription?.text) {
+                this.data = data?.serverContent?.outputTranscription?.text;
+            } else if (data?.serverContent?.outputTranscription?.finished) {
+                this.data = "Finished: "+data?.serverContent?.outputTranscription?.finished
+            }
         }
     }
 }
@@ -47,6 +64,13 @@ class GeminiLiveAPI {
         this.accessToken = "";
         this.websocket = null;
 
+        this.enableInputTranscript = false;
+        this.enableOutputTranscript = false;
+        this.voiceName = "";
+        this.voiceLocale = "";
+        this.enableSessionResumption = false;
+        this.resumptionHandle = "";
+
         console.log("Created Gemini Live API object: ", this);
     }
 
@@ -55,9 +79,29 @@ class GeminiLiveAPI {
         this.modelUri = `projects/${this.projectId}/locations/us-central1/publishers/google/models/${this.model}`;
     }
 
+    setApiHost(apiHost) {
+        this.apiHost = apiHost;
+    }
+
     setAccessToken(newAccessToken) {
         console.log("setting access token: ", newAccessToken);
         this.accessToken = newAccessToken;
+    }
+
+    setTranscript(input, output) {
+        console.log("input transcript: ", input, "output transcript: ", output);
+        this.enableInputTranscript = input;
+        this.enableOutputTranscript = output;
+    }
+
+    setVoice(name, locale) {
+        this.voiceName = name;
+        this.voiceLocale = locale;
+    }
+
+    setResumption(enable, handle) {
+        this.enableSessionResumption = enable;
+        this.resumptionHandle = handle;
     }
 
     connect(accessToken) {
@@ -117,12 +161,32 @@ class GeminiLiveAPI {
                 model: this.modelUri,
                 generation_config: {
                     response_modalities: this.responseModalities,
+                    speech_config: {
+                        voice_config: {
+                            prebuilt_voice_config: {voice_name: this.voiceName},
+                        },
+                        language_code: this.voiceLocale
+                    }
                 },
                 system_instruction: {
                     parts: [{ text: this.systemInstructions }],
                 },
             },
         };
+
+        if (this.enableInputTranscript) {
+            sessionSetupMessage.setup.input_audio_transcription = {};
+        }
+        if (this.enableOutputTranscript) {
+            sessionSetupMessage.setup.output_audio_transcription = {};
+        }
+        if (this.enableSessionResumption) {
+            sessionSetupMessage.setup.session_resumption = {
+                handle: this.resumptionHandle
+            };
+        }
+
+        console.log("setup message: " + sessionSetupMessage);
         this.sendMessage(sessionSetupMessage);
     }
 

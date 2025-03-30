@@ -5,11 +5,10 @@ window.addEventListener("load", (event) => {
     setAvailableMicrophoneOptions();
 });
 
-const PROXY_URL = "wss://[THE_URL_YOU_COPIED_WITHOUT_HTTP]";
-const PROJECT_ID = "your project id";
+const PROXY_URL = "ws://localhost:8080";
+const PROJECT_ID = "visionai-testing-stable";
 const MODEL = "gemini-2.0-flash-exp";
 const API_HOST = "us-central1-aiplatform.googleapis.com";
-
 const accessTokenInput = document.getElementById("token");
 const projectInput = document.getElementById("project");
 const systemInstructionsInput = document.getElementById("systemInstructions");
@@ -31,6 +30,14 @@ const screenBtn = document.getElementById("screenBtn");
 const cameraSelect = document.getElementById("cameraSource");
 const micSelect = document.getElementById("audioSource");
 
+const envApiHost = document.getElementById("envApiHost");
+const inputTranscript = document.getElementById("inputTranscript");
+const outputTranscript = document.getElementById("outputTranscript");
+const enableResumption = document.getElementById("resumption");
+const resumptionHandle = document.getElementById("handle");
+const voiceName = document.getElementById("voiceName");
+const voiceLocale = document.getElementById("voiceLocale");
+
 const geminiLiveApi = new GeminiLiveAPI(PROXY_URL, PROJECT_ID, MODEL, API_HOST);
 
 geminiLiveApi.onErrorMessage = (message) => {
@@ -39,7 +46,6 @@ geminiLiveApi.onErrorMessage = (message) => {
 };
 
 function getSelectedResponseModality() {
-    // return "AUDIO";
     const radioButtons = document.querySelectorAll(
         'md-radio[name="responseModality"]',
     );
@@ -58,11 +64,25 @@ function getSystemInstructions() {
     return systemInstructionsInput.value;
 }
 
+function getApiHost() {
+    if (envApiHost.value === 'autopush') {
+        return 'us-central1-autopush-aiplatform.sandbox.googleapis.com'
+    }
+    if (envApiHost.value === 'staging') {
+        return 'us-central1-staging-aiplatform.sandbox.googleapis.com'
+    }
+    return 'us-central1-aiplatform.googleapis.com'
+}
+
 function connectBtnClick() {
     setAppStatus("connecting");
 
     geminiLiveApi.responseModalities = getSelectedResponseModality();
     geminiLiveApi.systemInstructions = getSystemInstructions();
+    geminiLiveApi.setApiHost(getApiHost());
+    geminiLiveApi.setTranscript(inputTranscript.checked, outputTranscript.checked);
+    geminiLiveApi.setResumption(enableResumption.checked, resumptionHandle.value);
+    geminiLiveApi.setVoice(voiceName.value, voiceLocale.value);
 
     geminiLiveApi.onConnectionStarted = () => {
         setAppStatus("connected");
@@ -71,17 +91,28 @@ function connectBtnClick() {
 
     geminiLiveApi.setProjectId(projectInput.value);
     geminiLiveApi.connect(accessTokenInput.value);
+
 }
 
 const liveAudioOutputManager = new LiveAudioOutputManager();
 
 geminiLiveApi.onReceiveResponse = (messageResponse) => {
-    if (messageResponse.type == "AUDIO") {
+    console.log("message response type: "+messageResponse.type);
+    if (messageResponse.type === "AUDIO") {
         liveAudioOutputManager.playAudioChunk(messageResponse.data);
-    } else if (messageResponse.type == "TEXT") {
+    } else if (messageResponse.type === "TEXT") {
         console.log("Gemini said: ", messageResponse.data);
         newModelMessage(messageResponse.data);
-    }
+    } else if (messageResponse.type === "RESUMPTION") {
+        console.log("Resumption handle received: ", messageResponse.data);
+        newModelMessage("New Resumption Handle ID: "+messageResponse.data);
+    } else if (messageResponse.type === "INPUT_TRANSCRIPTION") {
+        console.log("Input transcription received: ", messageResponse.data);
+        newModelMessage("Input Transcription: "+messageResponse.data);
+    } else if (messageResponse.type === "OUTPUT_TRANSCRIPTION") {
+        console.log("Output transcription received: ", messageResponse.data);
+        newModelMessage("Output Transcription: "+messageResponse.data);
+    } 
 };
 
 const liveAudioInputManager = new LiveAudioInputManager();
