@@ -122,7 +122,13 @@ geminiLiveApi.onReceiveResponse = (messageResponse) => {
     } else if (messageResponse.type === "OUTPUT_TRANSCRIPTION") {
         console.log("Output transcription received: ", messageResponse.data);
         newModelMessage("Output Transcription: "+messageResponse.data);
-    } 
+    } else if (messageResponse.type === "END_OF_TURN") {
+        console.log("End of turn");
+        newModelMessage("End of turn!");
+    } else if (messageResponse.type === "INTERRUPT") {
+        console.log("Interrupted!");
+        newModelMessage("Interrupted!");
+    }
 };
 
 const liveAudioInputManager = new LiveAudioInputManager();

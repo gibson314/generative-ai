@@ -3,6 +3,7 @@ class GeminiLiveResponseMessage {
         this.data = "";
         this.type = "";
         this.endOfTurn = data?.serverContent?.turnComplete;
+        this.interrupt = data?.serverContent?.interrupted;
 
         const parts = data?.serverContent?.modelTurn?.parts;
 
@@ -31,6 +32,12 @@ class GeminiLiveResponseMessage {
             } else if (data?.serverContent?.outputTranscription?.finished) {
                 this.data = "Finished: "+data?.serverContent?.outputTranscription?.finished
             }
+        } else if (this.endOfTurn) {
+            this.data = "END OF TURN";
+            this.type = "END_OF_TURN";
+        } else if (this.interrupt) {
+            this.data = "INTERRUPT";
+            this.type = "INTERRUPT";
         }
     }
 }
