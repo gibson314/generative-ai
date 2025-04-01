@@ -70,6 +70,10 @@ class GeminiLiveAPI {
         this.voiceLocale = "";
         this.enableSessionResumption = false;
         this.resumptionHandle = "";
+        this.disableDetection = false;
+        this.disableInterruption = false;
+        this.startSensitivity = "";
+        this.endSensitivity = "";
 
         console.log("Created Gemini Live API object: ", this);
     }
@@ -102,6 +106,13 @@ class GeminiLiveAPI {
     setResumption(enable, handle) {
         this.enableSessionResumption = enable;
         this.resumptionHandle = handle;
+    }
+
+    setVad(disableInterruption, disableDetection, startSen, endSen) {
+        this.disableDetection = disableDetection;
+        this.disableInterruption = disableInterruption;
+        this.startSensitivity = startSen;
+        this.endSensitivity = endSen;
     }
 
     connect(accessToken) {
@@ -159,6 +170,7 @@ class GeminiLiveAPI {
         const sessionSetupMessage = {
             setup: {
                 model: this.modelUri,
+                realtime_input_config: {},
                 generation_config: {
                     response_modalities: this.responseModalities,
                     speech_config: {
@@ -186,6 +198,30 @@ class GeminiLiveAPI {
             };
         }
 
+        sessionSetupMessage.setup.realtime_input_config.automatic_activity_detection = {}
+        if (this.disableDetection) {
+            sessionSetupMessage.setup.realtime_input_config.automatic_activity_detection.disabled = true;
+        }
+        if (this.disableInterruption) {
+            sessionSetupMessage.setup.realtime_input_config.activity_handling = 2;
+        }
+
+        if (this.startSensitivity === "") {
+            sessionSetupMessage.setup.realtime_input_config.automatic_activity_detection.start_of_speech_sensitivity = 0;
+        } else if (this.startSensitivity === "low") {
+            sessionSetupMessage.setup.realtime_input_config.automatic_activity_detection.start_of_speech_sensitivity = 2;
+        } else if (this.startSensitivity === "high") {
+            sessionSetupMessage.setup.realtime_input_config.automatic_activity_detection.start_of_speech_sensitivity = 1;
+        }
+
+        if (this.endSensitivity === "") {
+            sessionSetupMessage.setup.realtime_input_config.automatic_activity_detection.end_of_speech_sensitivity = 0;
+        } else if (this.endSensitivity === "low") {
+            sessionSetupMessage.setup.realtime_input_config.automatic_activity_detection.end_of_speech_sensitivity = 2;
+        } else if (this.endSensitivity === "high") {
+            sessionSetupMessage.setup.realtime_input_config.automatic_activity_detection.end_of_speech_sensitivity = 1;
+        }
+
         console.log("setup message: " + sessionSetupMessage);
         this.sendMessage(sessionSetupMessage);
     }
@@ -203,6 +239,24 @@ class GeminiLiveAPI {
             },
         };
         this.sendMessage(textMessage);
+    }
+
+    sendVoiceActivityMessage(start) {
+        if (start) {
+            const startMessage = {
+                realtime_input: {
+                    activity_start: {},
+                },
+            };
+            this.sendMessage(startMessage);
+        } else {
+            const endMessage = {
+                realtime_input: {
+                    activity_end: {},
+                },
+            };
+            this.sendMessage(endMessage);
+        }
     }
 
     sendRealtimeInputMessage(data, mime_type) {

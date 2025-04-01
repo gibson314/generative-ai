@@ -6,6 +6,7 @@ window.addEventListener("load", (event) => {
 });
 
 const PROXY_URL = "ws://localhost:8080";
+// const PROXY_URL = "/ws";
 const PROJECT_ID = "visionai-testing-stable";
 const MODEL = "gemini-2.0-flash-exp";
 const API_HOST = "us-central1-aiplatform.googleapis.com";
@@ -37,6 +38,11 @@ const enableResumption = document.getElementById("resumption");
 const resumptionHandle = document.getElementById("handle");
 const voiceName = document.getElementById("voiceName");
 const voiceLocale = document.getElementById("voiceLocale");
+const disableInterruption = document.getElementById("disableInterruption");
+const disableDetection = document.getElementById("disableDetection");
+const startSensitivity = document.getElementById("startSensitivity");
+const endSensitivity = document.getElementById("endSensitivity");
+
 
 const geminiLiveApi = new GeminiLiveAPI(PROXY_URL, PROJECT_ID, MODEL, API_HOST);
 
@@ -83,6 +89,10 @@ function connectBtnClick() {
     geminiLiveApi.setTranscript(inputTranscript.checked, outputTranscript.checked);
     geminiLiveApi.setResumption(enableResumption.checked, resumptionHandle.value);
     geminiLiveApi.setVoice(voiceName.value, voiceLocale.value);
+    geminiLiveApi.setVad(disableInterruption.checked, disableDetection.checked,
+        startSensitivity.value, endSensitivity.value
+    );
+    
 
     geminiLiveApi.onConnectionStarted = () => {
         setAppStatus("connected");
@@ -161,6 +171,16 @@ function micOffBtnClick() {
 
     micBtn.hidden = false;
     micOffBtn.hidden = true;
+}
+
+function audioStartButtonClick() {
+    console.log("start voice activity...");
+    geminiLiveApi.sendVoiceActivityMessage(true);
+}
+
+function audioEndButtonClick() {
+    console.log("end voice activity...");
+    geminiLiveApi.sendVoiceActivityMessage(false);
 }
 
 const videoElement = document.getElementById("video");
